@@ -1,13 +1,16 @@
 import http.server
 import socketserver
 import json
-import urllib.request
-import urllib.parse
-import traceback
+import requests
+import os
+import re
 
 PORT = 5000
 
+TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")
+CHAT_ID = os.getenv("TELEGRAM_CHAT_ID")
 API_KEY = os.getenv("API_KEY")
+
 SERVICE_DESK_URL = "http://project1-service-desk-1:8080/sdpapi/request"
 
 SEVERITY_TO_PRIORITY = {
@@ -15,6 +18,22 @@ SEVERITY_TO_PRIORITY = {
     "warning": "Medium",
     "info": "Low"
 }
+
+
+def send_telegram(message):
+    try:
+        url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage"
+
+        response = requests.post(url, data={
+            "chat_id": CHAT_ID,
+            "text": message
+        })
+
+        print("📩 Telegram response:", response.text)
+
+    except Exception as e:
+        print("❌ Telegram error:", e)
+
 
 class Handler(http.server.BaseHTTPRequestHandler):
     def do_POST(self):
@@ -33,6 +52,8 @@ class Handler(http.server.BaseHTTPRequestHandler):
             data = json.loads(body)
             alerts = data.get("alerts", [])
 
+            print("ALERTS:", alerts)
+
             for a in alerts:
                 annotations = a.get("annotations", {})
                 labels = a.get("labels", {})
@@ -43,41 +64,51 @@ class Handler(http.server.BaseHTTPRequestHandler):
                 severity = labels.get("severity", "info")
                 priority = SEVERITY_TO_PRIORITY.get(severity, "Medium")
 
-                # 🔥 ВСЁ В ПРАВИЛЬНОМ РЕГИСТРЕ
+                technician = labels.get("technician", "administrator")
+
+                print("➡️ SUMMARY:", summary)
+                print("➡️ DESCRIPTION:", description)
+
+                # ✅ правильный XML
                 xml_data = f"<Operation><Details><Requester>administrator</Requester><Subject>{summary}</Subject><Description>{description}</Description><Priority>{priority}</Priority></Details></Operation>"
 
-                print("\n➡️ XML:")
-                print(xml_data)
+                print("➡️ XML:", xml_data)
 
-                form_data = {
+                payload = {
                     "OPERATION_NAME": "ADD_REQUEST",
                     "TECHNICIAN_KEY": API_KEY,
                     "INPUT_DATA": xml_data
                 }
 
-                encoded_data = urllib.parse.urlencode(form_data).encode("utf-8")
-
-                req = urllib.request.Request(
-                    SERVICE_DESK_URL,
-                    data=encoded_data,
-                    headers={
-                        "Content-Type": "application/x-www-form-urlencoded"
-                    },
-                    method="POST"
-                )
-
                 try:
-                    with urllib.request.urlopen(req) as response:
-                        resp_body = response.read().decode()
-                        print("\n✅ SUCCESS:")
-                        print(resp_body)
-                except Exception:
-                    print("\n❌ ERROR:")
-                    traceback.print_exc()
+                    response = requests.post(
+                        SERVICE_DESK_URL,
+                        data=payload
+                    )
 
-        except Exception:
-            print("\n❌ PROCESSING ERROR:")
-            traceback.print_exc()
+                    print("✅ ServiceDesk status:", response.status_code)
+                    print("✅ ServiceDesk response:", response.text)
+
+                    match = re.search(r"<workorderid>(\d+)</workorderid>", response.text)
+                    ticket_id = match.group(1) if match else "unknown"
+
+                    message = f"""🚨 Incident detected!
+
+📌 Source: Prometheus
+📄 Summary: {summary}
+📝 Description: {description}
+🎯 Priority: {priority}
+🎫 Ticket ID: {ticket_id}
+👤 Technician: {technician}
+"""
+
+                    send_telegram(message)
+
+                except Exception as e:
+                    print("❌ ServiceDesk error:", e)
+
+        except Exception as e:
+            print("❌ PROCESSING ERROR:", e)
 
         self.send_response(200)
         self.end_headers()
