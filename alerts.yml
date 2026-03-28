@@ -1,0 +1,17 @@
+groups:
+  - name: test_alerts
+    rules:
+      - alert: TestAlert
+        expr: vector(1)
+        for: 0s
+        labels:
+          severity: critical
+          team: Network
+          service: Email
+          site: "New York"
+          technician: administrator
+          level: "Tier 3"
+        annotations:
+          summary: "Test alert firing"
+          description: "Bu opisaniya bolishi kerak"
+          template: "Unable to browse"

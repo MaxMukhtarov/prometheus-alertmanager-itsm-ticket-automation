@@ -1,0 +1,10 @@
+global:
+  resolve_timeout: 5m
+
+route:
+  receiver: "webhook"
+
+receivers:
+  - name: "webhook"
+    webhook_configs:
+      - url: "http://webhook:5000/alert"
