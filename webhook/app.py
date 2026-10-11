@@ -69,7 +69,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
                 print("➡️ SUMMARY:", summary)
                 print("➡️ DESCRIPTION:", description)
 
-                # ✅ правильный XML
+                
                 xml_data = f"<Operation><Details><Requester>administrator</Requester><Subject>{summary}</Subject><Description>{description}</Description><Priority>{priority}</Priority></Details></Operation>"
 
                 print("➡️ XML:", xml_data)
