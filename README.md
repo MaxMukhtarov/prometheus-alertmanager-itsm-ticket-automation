@@ -223,7 +223,7 @@ xml_data = f"<Operation><Details><Requester>administrator</Requester><Subject>{s
 
 ## 👨‍💻 Author
 
-Mamurjon Mukhtorov (Monitoring & Automation | Devops Engineer)
+Mamurjon Mukhtorov (Monitoring & Automation | Devops Engineer & Linux System Administrator)
 
 ---
 
